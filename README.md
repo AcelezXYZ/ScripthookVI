@@ -7,8 +7,9 @@ small C API.
 **Status: skeleton.** It builds, but it does **not attach to the game yet**.
 Everything that depends on the game's internals is read from byte patterns
 in `ScriptHookVI.ini`, and **no patterns are shipped** because none have been
-verified for GTA VI (the notes in this repository cover asset formats, not
-the executable). Until `ScriptTick` is configured the log says
+verified for GTA VI (the format notes in
+[GTA6-Asset-Info](https://github.com/AcelezXYZ/GTA6-Asset-Info) cover assets,
+not the executable). Until `ScriptTick` is configured the log says
 `hook NOT attached` and no script runs. Nothing here was run against the game.
 
 ## How it fits together
