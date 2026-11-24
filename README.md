@@ -77,8 +77,41 @@ Each item is one entry in `[Patterns]` (see the ini) or a verification:
 | `OnlineFlag` | safety guard | one byte, non-zero online |
 | Window/keyboard | keyboard handlers | normal top-level window of the process |
 
-Not included yet: a D3D/Vulkan present hook (overlay/drawing), a native
-name/hash database, hot-reload of plugins, a .NET/Lua host.
+Not included yet: graphics backends (see below), a native name/hash database,
+hot-reload of plugins, a .NET/Lua host.
+
+## Render hooks (scaffold)
+
+Goal: let render extensions (FSR 4 / DLSS-style upscalers and frame generation)
+get the current and previous frame's colour and motion vectors **before the UI
+pass**. What exists:
+
+* `sdk/inc/render.h` / `render_types.h`: stage callbacks (`PRE_UI`, `POST_UI`,
+  `PRESENT`), `renderGetResource(slot, history)` for colour, motion vectors,
+  depth and final colour, `renderGetFrameInfo` (render size, jitter, motion
+  vector scale, view-projection of this and the previous frame, reset flag).
+* `src/render/`: frame/history bookkeeping, tested natively
+  (`tests/render_manager_test.cpp`): previous-frame data is a backend-owned
+  copy valid for one more frame; `resetHistory` is set on the first frame,
+  resolution change, frame-index gap or when the backend asks (camera cut).
+* Raw API handles (`ID3D12Resource*` / `VkImage`) are hidden unless
+  `[Render] AllowNativeHandles=1`.
+
+What does **not** exist, and is the hard part:
+
+* A D3D12 and/or Vulkan backend (`IRenderBackend`): hooking the API, finding
+  the pre-UI boundary in the game's renderer, locating the motion vector and
+  depth targets, and copying them for history. This needs reverse engineering
+  of the game and knowing which graphics API the PC build uses.
+* Whether the game writes usable motion vectors at all.
+* The exact input requirements of the vendor SDKs (e.g. DLSS 5), which I have
+  not seen. Do not treat the current struct layout as final.
+
+Run the logic tests natively:
+
+```bash
+g++ -std=c++20 -Isdk/inc -Isrc/render tests/render_manager_test.cpp src/render/render_manager.cpp -o rmt && ./rmt
+```
 
 ## Safety
 

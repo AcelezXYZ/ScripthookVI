@@ -5,6 +5,7 @@
 #include "core/log.h"
 #include "core/paths.h"
 #include "game/game_api.h"
+#include "render/render_init.h"
 #include "runtime/asi_loader.h"
 #include "runtime/input.h"
 #include "version.h"
@@ -35,6 +36,7 @@ DWORD WINAPI Bootstrap(LPVOID)
 	if (!ExeAllowed()) { SHVI_INFO("executable not in [General] TargetExe, idle"); return 0; }
 
 	const bool attached = game::Init();
+	render::Init();
 	input::Install(static_cast<DWORD>(GlobalConfig().GetInt("General", "WindowTimeoutMs", 60000)));
 	if (GlobalConfig().GetBool("Asi", "Load", true)) {
 		int n = asi::LoadAll();
@@ -53,6 +55,7 @@ BOOL APIENTRY DllMain(HMODULE module, DWORD reason, LPVOID)
 		if (t) CloseHandle(t);
 	} else if (reason == DLL_PROCESS_DETACH) {
 		shvi::input::Uninstall();
+		shvi::render::Shutdown();
 		shvi::game::Shutdown();
 	}
 	return TRUE;
