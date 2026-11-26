@@ -2,10 +2,12 @@
 #include <filesystem>
 
 namespace shvi::paths {
-// Directory that contains ScriptHookVI.dll (where the .ini and .log live).
-const std::filesystem::path& ModuleDir();
-// Directory of the game executable (where *.asi plugins are searched).
+// Folder of ScriptHookVI.ini / ScriptHookVI.log (default: folder of the DLL).
+const std::filesystem::path& ConfigDir();
+// Folder searched for *.asi plugins (default: folder of the host executable).
 const std::filesystem::path& GameDir();
-// File name of the game executable, e.g. "Game.exe".
+// File name of the host executable, e.g. "victory.exe".
 const std::wstring& ExeName();
+// Optional overrides; call before anything else uses the paths.
+void Override(const std::filesystem::path& configDir, const std::filesystem::path& gameDir);
 } // namespace shvi::paths

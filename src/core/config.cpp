@@ -54,11 +54,11 @@ std::string Config::GetString(const std::string& section, const std::string& key
 	return it == m_values.end() ? def : it->second;
 }
 
-long Config::GetInt(const std::string& section, const std::string& key, long def) const
+long long Config::GetInt(const std::string& section, const std::string& key, long long def) const
 {
 	auto it = m_values.find(MakeKey(section, key));
 	if (it == m_values.end() || it->second.empty()) return def;
-	return std::strtol(it->second.c_str(), nullptr, 0); // accepts 0x.. hex
+	return std::strtoll(it->second.c_str(), nullptr, 0); // accepts 0x.. hex
 }
 
 bool Config::GetBool(const std::string& section, const std::string& key, bool def) const

@@ -10,10 +10,16 @@ struct Region {
 	size_t size = 0;
 };
 
-// Image of the game executable.
+// Image of the host executable.
 Region MainModule();
-// PE TimeDateStamp of the game executable (identifies the build).
-uint32_t MainModuleTimestamp();
+// The image all patterns and RVAs refer to: the mapped title when a host
+// attached with shviAttach, otherwise the host executable.
+Region TargetImage();
+void SetTargetImage(const Region& r);
+// True if `r` starts with a PE header we can parse.
+bool IsValidImage(const Region& r);
+// PE TimeDateStamp of an image (identifies the build).
+uint32_t ImageTimestamp(const Region& r);
 
 // Scan the readable sections of the image for an IDA-style pattern,
 // e.g. "48 8B 05 ?? ?? ?? ?? 48 85 C0". Returns the first match or nullptr.

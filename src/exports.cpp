@@ -1,8 +1,15 @@
 // Public C API (see sdk/inc/main.h).
 #define SHVI_BUILD
 #include "../sdk/inc/main.h"
+#include "../sdk/inc/host.h"
+#include "../sdk/inc/render.h"
+#include "core/attach.h"
+#include "core/config.h"
+#include "core/log.h"
 #include "core/memory.h"
+#include "core/paths.h"
 #include "game/game_api.h"
+#include "render/render_manager.h"
 #include "runtime/input.h"
 #include "runtime/native_invoker.h"
 #include "runtime/script_manager.h"
@@ -25,5 +32,37 @@ SHVI_API void nativePush64(UINT64 v) { natives::Push(v); }
 SHVI_API PUINT64 nativeCall() { return natives::Call(); }
 
 SHVI_API UINT64* getGlobalPtr(int index) { return game::GlobalPtr(index); }
-SHVI_API DWORD getGameExeTimestamp() { return mem::MainModuleTimestamp(); }
+SHVI_API DWORD getGameExeTimestamp() { return mem::ImageTimestamp(mem::TargetImage()); }
+SHVI_API const char* getGameBuildId() { return core::BuildId().c_str(); }
 SHVI_API int shviIsAttached() { return game::IsAttached() ? 1 : 0; }
+
+// ---- render hooks (scaffold, see sdk/inc/render.h) ----
+SHVI_API void renderCallbackRegister(ShviRenderStage s, RenderStageCallback cb) { render::Manager::Get().Register(s, cb); }
+SHVI_API void renderCallbackUnregister(ShviRenderStage s, RenderStageCallback cb) { render::Manager::Get().Unregister(s, cb); }
+SHVI_API int renderGetFrameInfo(int history, ShviFrameInfo* out) { return render::Manager::Get().GetFrameInfo(history, out) ? 1 : 0; }
+SHVI_API int renderGetResource(ShviResourceSlot slot, int history, ShviResource* out) { return render::Manager::Get().GetResource(slot, history, out) ? 1 : 0; }
+SHVI_API int renderGetApi() { return render::Manager::Get().Api(); }
+
+// ---- host interface (see sdk/inc/host.h) ----
+SHVI_HOST_API int shviAttach(const ShviAttachInfo* info)
+{
+	if (!info || info->structSize < sizeof(ShviAttachInfo)) return 0;
+	core::AttachParams p;
+	p.image = {info->imageBase, info->imageSize};
+	if (info->buildId) p.buildId = info->buildId;
+	p.hostIsOffline = (info->flags & SHVI_HOST_OFFLINE) != 0;
+	if (info->configDir) p.configDir = info->configDir;
+	if (info->gameDir) p.gameDir = info->gameDir;
+	return core::Attach(p) ? 1 : 0;
+}
+
+SHVI_HOST_API void shviDetach(void) { core::Detach(); }
+
+SHVI_HOST_API int shviAttachMainModule(void)
+{
+	// Optional restriction to one executable name, read before attaching.
+	core::AttachParams p;
+	p.image = mem::MainModule();
+	p.standalone = true;
+	return core::Attach(p) ? 1 : 0;
+}
