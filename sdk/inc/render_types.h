@@ -36,8 +36,8 @@ struct ShviFrameInfo {
 	float jitterY;
 	float motionVectorScaleX; // multiply MV texels by this to get pixels
 	float motionVectorScaleY;
-	float viewProj[16];       // row-major, this frame
-	float prevViewProj[16];   // row-major, previous frame
+	float viewProj[16];       // row-major, this frame (all zero if the host has none)
+	float prevViewProj[16];   // row-major, previous frame (all zero if the host has none)
 	int32_t resetHistory;     // 1: do not reuse previous-frame data (cut, resize, first frame)
 	uint32_t _pad;
 };
