@@ -1,6 +1,7 @@
 #include "render_init.h"
 #include "../core/config.h"
 #include "../core/log.h"
+#include "host_backend.h"
 #include "render_manager.h"
 
 namespace shvi::render {
@@ -32,10 +33,28 @@ bool Init()
 	return true;
 }
 
+bool SetHostBackend(const ShviRenderBackendDesc& desc)
+{
+	const Config& cfg = GlobalConfig();
+	if (!cfg.GetBool("Render", "Enabled", false)) return false;
+	if (desc.structSize < sizeof(ShviRenderBackendDesc) || !desc.copyForHistory) {
+		SHVI_ERROR("host render backend: invalid description");
+		return false;
+	}
+	static HostBackend* backend = nullptr; // lives for the process
+	delete backend;
+	backend = new HostBackend(desc);
+	g_backend = backend;
+	const bool native = cfg.GetBool("Render", "AllowNativeHandles", false);
+	Manager::Get().SetBackend(backend, native);
+	SHVI_INFO("render backend \"%s\" (host) active, native handles for plugins: %s", backend->Name(),
+	          native ? "yes" : "no");
+	return true;
+}
+
 void Shutdown()
 {
 	Manager::Get().SetBackend(nullptr, false);
-	if (g_backend) g_backend->Uninstall();
-	g_backend = nullptr;
+	g_backend = nullptr; // the host backend object is kept: a host thread may still be inside it
 }
 } // namespace shvi::render

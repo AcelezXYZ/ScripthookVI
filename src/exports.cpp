@@ -9,6 +9,7 @@
 #include "core/memory.h"
 #include "core/paths.h"
 #include "game/game_api.h"
+#include "render/render_init.h"
 #include "render/render_manager.h"
 #include "runtime/input.h"
 #include "runtime/native_invoker.h"
@@ -66,3 +67,10 @@ SHVI_HOST_API int shviAttachMainModule(void)
 	p.standalone = true;
 	return core::Attach(p) ? 1 : 0;
 }
+
+// ---- render feed (host side, see sdk/inc/host.h) ----
+SHVI_HOST_API int shviRenderSetBackend(const ShviRenderBackendDesc* desc) { return desc && render::SetHostBackend(*desc) ? 1 : 0; }
+SHVI_HOST_API void shviRenderBeginFrame(const ShviFrameInfo* info) { if (info) render::Manager::Get().BeginFrame(*info); }
+SHVI_HOST_API void shviRenderPublish(const ShviResource* r) { if (r) render::Manager::Get().Publish(*r); }
+SHVI_HOST_API void shviRenderStage(int stage) { render::Manager::Get().Dispatch(static_cast<ShviRenderStage>(stage)); }
+SHVI_HOST_API void shviRenderEndFrame(void) { render::Manager::Get().EndFrame(); }
