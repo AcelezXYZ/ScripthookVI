@@ -25,7 +25,7 @@ endif()
 # --- core hook: ScriptHookVI.dll --------------------------------------------
 add_library(ScriptHookVI SHARED
   src/dllmain.cpp src/exports.cpp
-  src/core/log.cpp src/core/config.cpp src/core/paths.cpp src/core/memory.cpp
+  src/core/attach.cpp src/core/log.cpp src/core/config.cpp src/core/paths.cpp src/core/memory.cpp
   src/game/game_api.cpp
   src/render/render_manager.cpp src/render/render_init.cpp
   src/runtime/native_invoker.cpp src/runtime/script_manager.cpp
@@ -52,6 +52,17 @@ option(SHVI_BUILD_TESTS "Build unit tests" OFF)
 if(SHVI_BUILD_TESTS)
   add_executable(render_manager_test tests/render_manager_test.cpp src/render/render_manager.cpp)
   target_include_directories(render_manager_test PRIVATE sdk/inc src/render)
+
+  # End-to-end: stand-in title + plugin + host (run with tests/run-e2e.sh, works under Wine)
+  add_library(testtitle SHARED tests/host/testtitle.cpp)
+  set_target_properties(testtitle PROPERTIES PREFIX "")
+  target_link_options(testtitle PRIVATE -Wl,--export-all-symbols)
+  add_library(selftest SHARED tests/host/selftest.cpp)
+  target_link_libraries(selftest PRIVATE ScriptHookVI_SDK)
+  set_target_properties(selftest PROPERTIES PREFIX "" SUFFIX ".asi")
+  add_executable(testhost tests/host/testhost.cpp)
+  target_include_directories(testhost PRIVATE sdk/inc)
+  add_dependencies(testhost ScriptHookVI testtitle selftest)
 endif()
 
 # --- install layout -----------------------------------------------------------

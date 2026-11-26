@@ -8,9 +8,11 @@
 // none have been verified for GTA VI yet.
 namespace shvi::game {
 
-// Resolves the configured patterns and installs the script-tick hook.
+// Resolves the configured targets (RVA or pattern) in mem::TargetImage() and
+// installs the script-tick hook. `hostIsOffline`: the host guarantees the
+// title cannot go online, so no OnlineFlag is needed.
 // Returns true when scripts will be ticked.
-bool Init();
+bool Init(bool hostIsOffline);
 void Shutdown();
 
 bool IsAttached();

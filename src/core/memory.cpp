@@ -14,11 +14,27 @@ Region MainModule()
 	return {base, nt->OptionalHeader.SizeOfImage};
 }
 
-uint32_t MainModuleTimestamp()
+namespace {
+Region g_target;
+}
+
+Region TargetImage() { return g_target.base ? g_target : MainModule(); }
+void SetTargetImage(const Region& r) { g_target = r; }
+
+bool IsValidImage(const Region& r)
 {
-	auto base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
-	auto dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(base);
-	auto nt = reinterpret_cast<const IMAGE_NT_HEADERS64*>(base + dos->e_lfanew);
+	if (!r.base || r.size < 0x1000 || !IsReadable(reinterpret_cast<void*>(r.base), 0x40)) return false;
+	auto dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(r.base);
+	if (dos->e_magic != IMAGE_DOS_SIGNATURE || dos->e_lfanew <= 0 || static_cast<size_t>(dos->e_lfanew) + 0x108 > r.size) return false;
+	auto nt = reinterpret_cast<const IMAGE_NT_HEADERS64*>(r.base + dos->e_lfanew);
+	return IsReadable(nt, sizeof(*nt)) && nt->Signature == IMAGE_NT_SIGNATURE &&
+	       nt->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC;
+}
+
+uint32_t ImageTimestamp(const Region& r)
+{
+	auto dos = reinterpret_cast<const IMAGE_DOS_HEADER*>(r.base);
+	auto nt = reinterpret_cast<const IMAGE_NT_HEADERS64*>(r.base + dos->e_lfanew);
 	return nt->FileHeader.TimeDateStamp;
 }
 

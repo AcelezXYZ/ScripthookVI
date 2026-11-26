@@ -53,7 +53,9 @@ SHVI_API PUINT64 nativeCall();
 // ---- globals / game info ---------------------------------------------------
 // Pointer to a script global, or nullptr if the global table is not resolved.
 SHVI_API UINT64* getGlobalPtr(int index);
-// PE TimeDateStamp of the game executable; use it to pin per-build data.
+// PE TimeDateStamp of the title image; use it to pin per-build data.
 SHVI_API DWORD getGameExeTimestamp();
+// Build id the host passed to shviAttach (e.g. BLAKE3 hex), "" if none.
+SHVI_API const char* getGameBuildId();
 // 1 when the hook is fully attached (scripts are being ticked), 0 otherwise.
 SHVI_API int shviIsAttached();

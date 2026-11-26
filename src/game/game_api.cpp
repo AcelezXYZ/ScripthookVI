@@ -24,6 +24,8 @@ bool g_allowOnline = false;
 
 // ---- pattern resolution --------------------------------------------------
 // Keys under [Patterns], <Name> being e.g. "ScriptTick":
+//   <Name>.Rva      offset from the image base (a per-build offset). If set,
+//                   the pattern keys below are ignored
 //   <Name>.Pattern  IDA-style byte pattern, empty = not configured
 //   <Name>.Offset   bytes added to the match address (may be negative)
 //   <Name>.RipDisp  offset of a rel32 displacement inside the instruction at
@@ -34,17 +36,30 @@ uint8_t* ResolveTarget(const char* name, size_t* stolen = nullptr)
 {
 	const Config& cfg = GlobalConfig();
 	const std::string key(name);
-	std::string pattern = cfg.GetString("Patterns", key + ".Pattern");
-	if (pattern.empty()) {
-		SHVI_WARN("pattern %s: not configured", name);
-		return nullptr;
+	const mem::Region image = mem::TargetImage();
+	uint8_t* hit = nullptr;
+
+	const std::string rva = cfg.GetString("Patterns", key + ".Rva");
+	if (!rva.empty()) {
+		const auto off = static_cast<uintptr_t>(cfg.GetInt("Patterns", key + ".Rva", 0));
+		if (off >= image.size) {
+			SHVI_ERROR("target %s: RVA 0x%llX is outside the image", name, (unsigned long long)off);
+			return nullptr;
+		}
+		hit = reinterpret_cast<uint8_t*>(image.base + off);
+	} else {
+		std::string pattern = cfg.GetString("Patterns", key + ".Pattern");
+		if (pattern.empty()) {
+			SHVI_WARN("target %s: not configured", name);
+			return nullptr;
+		}
+		hit = mem::FindPattern(image, pattern);
+		if (!hit) {
+			SHVI_ERROR("target %s: pattern not found in this build", name);
+			return nullptr;
+		}
 	}
-	uint8_t* hit = mem::FindPattern(mem::MainModule(), pattern);
-	if (!hit) {
-		SHVI_ERROR("pattern %s: not found in this build", name);
-		return nullptr;
-	}
-	hit += cfg.GetInt("Patterns", key + ".Offset", 0);
+	if (rva.empty()) hit += cfg.GetInt("Patterns", key + ".Offset", 0);
 	if (long len = cfg.GetInt("Patterns", key + ".RipLen", 0); len > 0)
 		hit = mem::ResolveRip(hit, static_cast<int>(cfg.GetInt("Patterns", key + ".RipDisp", 0)), static_cast<int>(len));
 	if (cfg.GetBool("Patterns", key + ".Deref", false)) {
@@ -52,8 +67,8 @@ uint8_t* ResolveTarget(const char* name, size_t* stolen = nullptr)
 		hit = *reinterpret_cast<uint8_t**>(hit);
 	}
 	if (stolen) *stolen = static_cast<size_t>(cfg.GetInt("Patterns", key + ".Stolen", 0));
-	SHVI_INFO("pattern %s: resolved to %p (module+0x%llX)", name, (void*)hit,
-	          (unsigned long long)(reinterpret_cast<uintptr_t>(hit) - mem::MainModule().base));
+	SHVI_INFO("target %s: resolved to %p (image+0x%llX)", name, (void*)hit,
+	          (unsigned long long)(reinterpret_cast<uintptr_t>(hit) - image.base));
 	return hit;
 }
 
@@ -81,18 +96,20 @@ uint64_t HookedTick(uint64_t a, uint64_t b, uint64_t c, uint64_t d)
 }
 } // namespace
 
-bool Init()
+bool Init(bool hostIsOffline)
 {
 	g_allowOnline = GlobalConfig().GetBool("Safety", "AllowOnline", false);
-	SHVI_INFO("game exe timestamp 0x%08X", mem::MainModuleTimestamp());
+	const mem::Region image = mem::TargetImage();
+	SHVI_INFO("target image %p, %llu bytes, timestamp 0x%08X, host offline: %s", (void*)image.base,
+	          (unsigned long long)image.size, mem::ImageTimestamp(image), hostIsOffline ? "yes" : "no");
 
 	g_getNativeHandler = reinterpret_cast<GetNativeHandlerFn>(ResolveTarget("GetNativeHandler"));
 	g_globalPages = reinterpret_cast<uint64_t**>(ResolveTarget("GlobalBase"));
 	g_onlineFlag = ResolveTarget("OnlineFlag");
 
-	if (!g_allowOnline && !g_onlineFlag &&
+	if (!hostIsOffline && !g_allowOnline && !g_onlineFlag &&
 	    GlobalConfig().GetBool("Safety", "RequireOnlineGuard", true)) {
-		SHVI_ERROR("OnlineFlag is unresolved and [Safety] RequireOnlineGuard=1: not attaching");
+		SHVI_ERROR("OnlineFlag is unresolved and [Safety] RequireOnlineGuard=1 and the host does not guarantee offline: not attaching");
 		return false;
 	}
 

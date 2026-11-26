@@ -11,7 +11,7 @@ public:
 	bool Load(const std::filesystem::path& file);
 	std::string GetString(const std::string& section, const std::string& key,
 	                      const std::string& def = {}) const;
-	long GetInt(const std::string& section, const std::string& key, long def = 0) const;
+	long long GetInt(const std::string& section, const std::string& key, long long def = 0) const;
 	bool GetBool(const std::string& section, const std::string& key, bool def = false) const;
 
 private:
